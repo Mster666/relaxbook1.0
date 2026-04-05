@@ -9,24 +9,6 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
-Route::get('/storage/{path}', function (string $path) {
-    if (str_contains($path, '..')) {
-        abort(404);
-    }
-
-    $disk = Storage::disk('public');
-
-    if (! $disk->exists($path)) {
-        abort(404);
-    }
-
-    $fullPath = $disk->path($path);
-
-    return response()->file($fullPath, [
-        'Cache-Control' => 'public, max-age=604800',
-    ]);
-})->where('path', '.*');
-
 Route::get('/', function () {
     return view('welcome');
 });
@@ -125,11 +107,22 @@ Route::post('/logout', function (Request $request) {
 Route::get('/storage/{path}', function (string $path) {
     $path = ltrim($path, '/');
 
+    if (str_contains($path, '..')) {
+        abort(404);
+    }
+
     if (! preg_match('/\.(?:png|jpe?g|webp|gif|svg)$/i', $path)) {
         abort(404);
     }
 
     if (! Storage::disk('public')->exists($path)) {
+        $fallback = public_path('images/logo.png');
+        if (is_file($fallback)) {
+            return response()->file($fallback, [
+                'Cache-Control' => 'public, max-age=300',
+            ]);
+        }
+
         abort(404);
     }
 
@@ -141,11 +134,22 @@ Route::get('/storage/{path}', function (string $path) {
 Route::get('/media/{path}', function (string $path) {
     $path = ltrim($path, '/');
 
+    if (str_contains($path, '..')) {
+        abort(404);
+    }
+
     if (! preg_match('/\.(?:png|jpe?g|webp|gif|svg)$/i', $path)) {
         abort(404);
     }
 
     if (! Storage::disk('public')->exists($path)) {
+        $fallback = public_path('images/logo.png');
+        if (is_file($fallback)) {
+            return response()->file($fallback, [
+                'Cache-Control' => 'public, max-age=300',
+            ]);
+        }
+
         abort(404);
     }
 
