@@ -315,7 +315,7 @@
                         </div>
                     @endif
 
-                    <div class="transform transition-all duration-500 hover:-translate-y-1">
+                    <div id="booking-wizard-section" class="transform transition-all duration-500 hover:-translate-y-1">
                         <livewire:booking-wizard />
                     </div>
                 </div>
@@ -323,5 +323,19 @@
         </div>
     </div>
     @livewireScripts
+    <script>
+        document.addEventListener('livewire:init', () => {
+            if (window.Livewire && typeof window.Livewire.on === 'function') {
+                window.Livewire.on('rb-scroll-to-booking', () => {
+                    const el = document.getElementById('booking-wizard-section');
+                    if (el && typeof el.scrollIntoView === 'function') {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        return;
+                    }
+                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                });
+            }
+        });
+    </script>
 </body>
 </html>

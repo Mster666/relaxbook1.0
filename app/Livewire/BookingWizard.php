@@ -19,6 +19,10 @@ use Livewire\Component;
 
 class BookingWizard extends Component
 {
+    protected $listeners = [
+        'mapSelectCompany' => 'handleMapSelectCompany',
+    ];
+
     public $step = 1;
 
     protected function selectedCompanyId(): ?int
@@ -73,6 +77,21 @@ class BookingWizard extends Component
     public $showSuccessModal = false;
 
     public $bookedDetails = [];
+
+    public ?float $userLatitude = null;
+    public ?float $userLongitude = null;
+
+    public array $quickCompanyCandidates = [];
+    public ?int $quickSuggestedCompanyId = null;
+    public ?string $quickSuggestedCompanyName = null;
+    public ?string $quickSuggestedDate = null;
+    public ?string $quickSuggestedTime = null;
+    public ?int $quickSuggestedServiceId = null;
+    public ?string $quickSuggestedServiceName = null;
+    public ?int $quickSuggestedTherapistId = null;
+    public ?string $quickSuggestedTherapistName = null;
+    public bool $quickBookReady = false;
+    public bool $quickBookModalOpen = false;
 
     public function mount()
     {
@@ -134,7 +153,249 @@ class BookingWizard extends Component
                     ->orWhere('subscription_expires_at', '>=', now());
             })
             ->orderBy('name')
-            ->get(['id', 'name', 'company_name', 'company_logo', 'company_address', 'email', 'phone_number']);
+            ->get(['id', 'name', 'company_name', 'company_logo', 'company_address', 'company_latitude', 'company_longitude', 'email', 'phone_number']);
+    }
+
+    public function quickBookStart(?float $latitude = null, ?float $longitude = null): void
+    {
+        $this->resetErrorBag();
+        $this->quickBookReady = false;
+        $this->quickBookModalOpen = true;
+        $this->userLatitude = $latitude;
+        $this->userLongitude = $longitude;
+
+        $companies = $this->companies;
+        if ($companies->isEmpty()) {
+            $this->addError('quickBook', 'No companies are available right now.');
+
+            return;
+        }
+
+        $sorted = $this->sortCompaniesByDistance($companies, $latitude, $longitude);
+        $this->quickCompanyCandidates = $sorted->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        $first = $sorted->first();
+        if (! $first) {
+            $this->addError('quickBook', 'No companies are available right now.');
+
+            return;
+        }
+
+        $this->selectCompany((int) $first->id);
+        $this->quickSuggestedCompanyId = (int) $first->id;
+        $this->quickSuggestedCompanyName = (string) ($first->company_name ?? $first->name);
+
+        $this->step = 4;
+        $this->selectedServiceIds = [];
+        $this->assignedTherapists = [];
+        $this->selectedTherapistId = null;
+        $this->selectedTherapist = null;
+        $this->selectedDate = null;
+        $this->selectedTime = null;
+        $this->selectedRoomId = null;
+    }
+
+    public function quickBookSelectService(int $serviceId): void
+    {
+        $companyId = $this->selectedCompanyId();
+        if (! $companyId) {
+            return;
+        }
+
+        $service = Service::query()
+            ->whereKey($serviceId)
+            ->where('is_active', true)
+            ->where('admin_id', $companyId)
+            ->first();
+
+        if (! $service) {
+            return;
+        }
+
+        $this->selectedServiceIds = [(int) $service->id];
+        $this->activeServiceId = (int) $service->id;
+        $this->assignedTherapists = [];
+        $this->selectedTherapistId = null;
+        $this->selectedTherapist = null;
+        $this->selectedRoomId = null;
+        $this->roomSelectionMade = false;
+
+        $this->quickSuggestedServiceId = (int) $service->id;
+        $this->quickSuggestedServiceName = (string) $service->name;
+
+        $this->quickBookComputeSuggestion();
+    }
+
+    public function quickBookComputeSuggestion(): void
+    {
+        $this->resetErrorBag('quickBook');
+        $this->quickBookReady = false;
+
+        if (empty($this->selectedServiceIds)) {
+            $this->addError('quickBook', 'Please select a service first.');
+
+            return;
+        }
+
+        $candidates = $this->quickCompanyCandidates;
+        if (empty($candidates)) {
+            $candidates = [$this->selectedCompanyId()];
+        }
+
+        foreach ($candidates as $companyId) {
+            $companyId = (int) $companyId;
+            if (! $companyId) {
+                continue;
+            }
+
+            $this->selectCompany($companyId);
+            $company = $this->selectedCompany;
+            if (! $company) {
+                continue;
+            }
+
+            $slot = $this->findEarliestAvailableSlotForSelectedService();
+            if (! $slot) {
+                continue;
+            }
+
+            [$date, $time, $therapistId, $roomId] = $slot;
+
+            $this->selectedDate = $date;
+            $this->selectedTime = $time;
+            $this->selectedRoomId = $roomId;
+            $this->selectedTherapistId = $therapistId;
+            $this->selectedTherapist = Therapist::find($therapistId);
+            $this->assignTherapistsForSelectedServices();
+
+            $this->quickSuggestedCompanyId = $companyId;
+            $this->quickSuggestedCompanyName = (string) ($company->company_name ?? $company->name);
+            $this->quickSuggestedDate = $date;
+            $this->quickSuggestedTime = $time;
+            $this->quickSuggestedTherapistId = $therapistId;
+            $this->quickSuggestedTherapistName = (string) ($this->selectedTherapist?->name ?? '');
+            $this->quickBookReady = true;
+            $this->step = 6;
+
+            return;
+        }
+
+        $this->addError('quickBook', 'No available schedule was found for the selected service. Try a different service or company.');
+    }
+
+    public function quickBookClose(): void
+    {
+        $this->quickBookModalOpen = false;
+    }
+
+    public function quickBookConfirm(): void
+    {
+        if (! $this->quickBookReady) {
+            return;
+        }
+
+        $this->quickBookModalOpen = false;
+        $this->book();
+    }
+
+    protected function sortCompaniesByDistance($companies, ?float $lat, ?float $lng)
+    {
+        if (! is_float($lat) || ! is_float($lng)) {
+            return $companies->values();
+        }
+
+        return $companies
+            ->map(function (Admin $company) use ($lat, $lng) {
+                $cLat = $company->company_latitude;
+                $cLng = $company->company_longitude;
+                $distance = null;
+                if ($cLat !== null && $cLng !== null) {
+                    $distance = $this->haversineKm($lat, $lng, (float) $cLat, (float) $cLng);
+                }
+
+                $company->distance_km = $distance;
+
+                return $company;
+            })
+            ->sortBy(function (Admin $company) {
+                return $company->distance_km ?? 999999;
+            })
+            ->values();
+    }
+
+    protected function haversineKm(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $earthRadius = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * (sin($dLng / 2) ** 2);
+        $c = 2 * asin(min(1, sqrt($a)));
+
+        return $earthRadius * $c;
+    }
+
+    protected function findEarliestAvailableSlotForSelectedService(): ?array
+    {
+        $companyId = $this->selectedCompanyId();
+        if (! $companyId) {
+            return null;
+        }
+
+        $serviceId = (int) ($this->selectedServiceIds[0] ?? 0);
+        if (! $serviceId) {
+            return null;
+        }
+
+        $durationMinutes = $this->selectedServicesDurationMinutes();
+        if ($durationMinutes <= 0) {
+            $durationMinutes = 60;
+        }
+
+        $daysToCheck = 14;
+        for ($i = 0; $i <= $daysToCheck; $i++) {
+            $date = now()->copy()->addDays($i)->toDateString();
+
+            if (Holiday::where('date', $date)->where('admin_id', $companyId)->exists()) {
+                continue;
+            }
+
+            $this->selectedDate = $date;
+            $this->generateTimeSlots();
+            $slots = collect($this->availableSlots ?? [])
+                ->filter(fn ($s) => is_array($s) && ! ($s['disabled'] ?? false))
+                ->pluck('time')
+                ->filter()
+                ->values();
+
+            if ($slots->isEmpty()) {
+                continue;
+            }
+
+            foreach ($slots as $time) {
+                $time = (string) $time;
+                $this->selectedTime = $time;
+
+                $hoursError = $this->validateWithinBusinessHours($date, $time, $durationMinutes);
+                if ($hoursError) {
+                    continue;
+                }
+
+                $this->assignTherapistsForSelectedServices();
+                $assignedId = (int) ($this->assignedTherapists[$serviceId]['id'] ?? 0);
+                if (! $assignedId) {
+                    continue;
+                }
+
+                $roomId = $this->findAvailableRoomIdForRange($date, $time, $durationMinutes);
+                if (! $roomId) {
+                    continue;
+                }
+
+                return [$date, $time, $assignedId, $roomId];
+            }
+        }
+
+        return null;
     }
 
     public function getSelectedCompanyProperty(): ?Admin
@@ -196,6 +457,24 @@ class BookingWizard extends Component
             $this->resetAfterCompanySelected();
         }
         $this->step = 2;
+    }
+
+    public function handleMapSelectCompany($payload = null): void
+    {
+        $companyId = null;
+        if (is_array($payload)) {
+            $companyId = $payload['companyId'] ?? $payload['company_id'] ?? null;
+        } else {
+            $companyId = $payload;
+        }
+
+        $companyId = (int) $companyId;
+        if (! $companyId) {
+            return;
+        }
+
+        $this->selectCompany($companyId);
+        $this->dispatch('rb-scroll-to-booking');
     }
 
     public function selectDate($date)

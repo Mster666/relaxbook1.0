@@ -77,6 +77,8 @@ class Admin extends Authenticatable implements FilamentUser, HasAvatar
         'company_name',
         'company_logo',
         'company_address',
+        'company_latitude',
+        'company_longitude',
         'phone_number',
         'gender',
         'age',
@@ -109,6 +111,8 @@ class Admin extends Authenticatable implements FilamentUser, HasAvatar
             'password' => 'hashed',
             'subscription_expires_at' => 'datetime',
             'subscription_verified_at' => 'datetime',
+            'company_latitude' => 'float',
+            'company_longitude' => 'float',
             'is_super_admin' => 'boolean',
             'is_active' => 'boolean',
         ];

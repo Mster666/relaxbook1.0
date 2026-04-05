@@ -1,4 +1,33 @@
-<div>
+<div
+    x-data="{
+        quickBookModalOpen: @entangle('quickBookModalOpen'),
+        quickBusy: false,
+        quickBook() {
+            if (this.quickBusy) return;
+            this.quickBusy = true;
+
+            const call = (lat, lng) => {
+                const p = $wire.quickBookStart(lat, lng);
+                if (p && typeof p.finally === 'function') {
+                    p.finally(() => (this.quickBusy = false));
+                } else {
+                    this.quickBusy = false;
+                }
+            };
+
+            if (!navigator.geolocation || !window.isSecureContext) {
+                call(null, null);
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => call(pos.coords.latitude, pos.coords.longitude),
+                () => call(null, null),
+                { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+            );
+        },
+    }"
+>
     <div class="relative overflow-hidden rounded-3xl bg-white/80 shadow-[0_30px_90px_-60px_rgba(15,23,42,0.55)] ring-1 ring-slate-200/70 backdrop-blur-sm dark:bg-slate-900/70 dark:ring-slate-800/70">
         @php
             $storageUrl = function (?string $path): ?string {
@@ -47,6 +76,115 @@
                 <p class="mt-2 max-w-xl text-sm font-medium text-white/85 sm:text-base">
                     Book your appointment in a few simple steps
                 </p>
+
+                <div class="mt-6 flex flex-col items-center gap-3 sm:flex-row">
+                    <button type="button" @click="quickBook()" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-extrabold text-indigo-700 shadow-xl shadow-black/10 hover:bg-white/90 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                        Quick Book Now
+                    </button>
+                    <div x-show="quickBusy" x-cloak class="text-xs font-semibold text-white/80">Finding nearest company…</div>
+                </div>
+
+                @error('quickBook')
+                    <div class="mt-4 max-w-2xl rounded-2xl bg-white/15 px-4 py-3 text-sm font-semibold text-white ring-1 ring-white/20">
+                        {{ $message }}
+                    </div>
+                @enderror
+            </div>
+        </div>
+
+        <div x-show="quickBookModalOpen" x-cloak class="fixed inset-0 z-[999]">
+            <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" @click="quickBookModalOpen = false; $wire.quickBookClose()"></div>
+            <div class="absolute inset-0 flex items-center justify-center p-5">
+                <div class="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)] ring-1 ring-slate-900/10 dark:bg-slate-900">
+                    <div class="flex items-start justify-between gap-4 border-b border-slate-200/70 p-6 dark:border-slate-800/70">
+                        <div>
+                            <div class="text-lg font-extrabold text-slate-900 dark:text-white">Quick Book Now</div>
+                            <div class="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">Select a service and confirm.</div>
+                        </div>
+                        <button type="button" class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" @click="quickBookModalOpen = false; $wire.quickBookClose()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="p-6 space-y-5">
+                        <div class="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200/70 dark:bg-slate-950/30 dark:ring-slate-800/70">
+                            <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Nearest company</div>
+                            <div class="mt-1 text-sm font-extrabold text-slate-900 dark:text-white">
+                                {{ $quickSuggestedCompanyName ?: ($this->selectedCompany?->company_name ?? $this->selectedCompany?->name ?? '—') }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="text-sm font-extrabold text-slate-900 dark:text-white">Select Service</div>
+                            <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                @foreach($this->services as $service)
+                                    @php
+                                        $isSelected = (int) ($quickSuggestedServiceId ?? 0) === (int) $service->id;
+                                    @endphp
+                                    <button type="button" wire:click="quickBookSelectService({{ $service->id }})"
+                                        class="rounded-2xl border p-4 text-left shadow-sm transition
+                                        {{ $isSelected ? 'border-indigo-300 bg-indigo-50 dark:border-indigo-700/60 dark:bg-indigo-900/25' : 'border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800/60' }}">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div class="min-w-0">
+                                                <div class="truncate text-sm font-extrabold text-slate-900 dark:text-white">{{ $service->name }}</div>
+                                                <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ (int) ($service->duration_minutes ?? 60) }} mins</div>
+                                            </div>
+                                            <div class="shrink-0 text-xs font-extrabold text-slate-700 dark:text-slate-200">
+                                                ₱{{ number_format((float) ($service->price ?? 0), 2) }}
+                                            </div>
+                                        </div>
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <div class="rounded-2xl bg-white ring-1 ring-slate-200/70 p-4 dark:bg-slate-900 dark:ring-slate-800/70">
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div>
+                                    <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Suggested date & time</div>
+                                    <div class="mt-1 text-sm font-extrabold text-slate-900 dark:text-white">
+                                        @if($quickSuggestedDate && $quickSuggestedTime)
+                                            {{ $quickSuggestedDate }} {{ $quickSuggestedTime }}
+                                        @else
+                                            —
+                                        @endif
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Assigned therapist</div>
+                                    <div class="mt-1 text-sm font-extrabold text-slate-900 dark:text-white">
+                                        {{ $quickSuggestedTherapistName ?: '—' }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        @error('quickBook')
+                            <div class="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800 ring-1 ring-rose-200/70 dark:bg-rose-900/20 dark:text-rose-200 dark:ring-rose-800/40">
+                                {{ $message }}
+                            </div>
+                        @enderror
+
+                        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <button type="button" class="inline-flex items-center justify-center rounded-2xl bg-slate-100 px-5 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-200 transition dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                                @click="quickBookModalOpen = false; $wire.quickBookClose()">
+                                Continue manually
+                            </button>
+
+                            <button type="button" wire:click="quickBookConfirm" wire:loading.attr="disabled" wire:target="quickBookConfirm"
+                                @if (! $quickBookReady) disabled @endif
+                                class="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3 text-sm font-extrabold text-white shadow-xl shadow-indigo-500/20 hover:from-indigo-700 hover:to-violet-700 transition disabled:opacity-60">
+                                Confirm Booking
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -117,6 +255,10 @@
                 <div class="mb-6">
                     <h2 class="text-2xl font-semibold text-slate-900 dark:text-white">Select a Company</h2>
                     <p class="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">Choose a company to continue your booking.</p>
+                </div>
+
+                <div class="mb-6">
+                    <livewire:nearby-company-map />
                 </div>
 
                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">

@@ -47,6 +47,16 @@ class AdminResource extends Resource
                             ->label('Company Address')
                             ->maxLength(255)
                             ->columnSpanFull(),
+                        Forms\Components\TextInput::make('company_latitude')
+                            ->label('Company Latitude')
+                            ->numeric()
+                            ->rule('between:-90,90')
+                            ->nullable(),
+                        Forms\Components\TextInput::make('company_longitude')
+                            ->label('Company Longitude')
+                            ->numeric()
+                            ->rule('between:-180,180')
+                            ->nullable(),
                         Forms\Components\TextInput::make('email')
                             ->email()
                             ->required()
