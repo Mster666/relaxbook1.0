@@ -12,6 +12,8 @@ WORKDIR /app
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
         git \
         unzip \
         libzip-dev \
@@ -26,6 +28,10 @@ RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoload
 
 COPY . .
 COPY --from=node_builder /app/public/build ./public/build
+
+RUN set -eux; \
+    mkdir -p public/js; \
+    curl -fsSL https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js -o public/js/alpine.min.js
 
 RUN set -eux; \
     mkdir -p \

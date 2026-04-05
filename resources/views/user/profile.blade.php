@@ -15,7 +15,11 @@
             }
         </script>
     @endif
-    <script defer src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"></script>
+    @if (file_exists(public_path('js/alpine.min.js')))
+        <script defer src="{{ asset('js/alpine.min.js') }}"></script>
+    @else
+        <script defer src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"></script>
+    @endif
     <script defer src="{{ asset('js/rb-loader.js') }}"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
