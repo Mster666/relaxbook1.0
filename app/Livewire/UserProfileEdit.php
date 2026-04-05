@@ -124,66 +124,8 @@ class UserProfileEdit extends Component
                 Storage::disk('public')->delete($user->profile_picture);
             }
 
-            // Optimization: Resize image before saving using GD
-            $originalPath = $this->photo->getRealPath();
-            $extension = $this->photo->getClientOriginalExtension();
-            $filename = 'profile-photos/'.uniqid().'.'.$extension;
-
-            // Create image from file
-            $image = null;
-            if (in_array(strtolower($extension), ['jpg', 'jpeg'])) {
-                $image = imagecreatefromjpeg($originalPath);
-            } elseif (strtolower($extension) === 'png') {
-                $image = imagecreatefrompng($originalPath);
-            } elseif (strtolower($extension) === 'webp') {
-                $image = imagecreatefromwebp($originalPath);
-            }
-
-            if ($image) {
-                $width = imagesx($image);
-                $height = imagesy($image);
-                $newWidth = 400;
-                $newHeight = 400;
-
-                // Square crop and resize
-                $size = min($width, $height);
-                $x = ($width - $size) / 2;
-                $y = ($height - $size) / 2;
-
-                $newImage = imagecreatetruecolor($newWidth, $newHeight);
-
-                // Handle transparency for PNG/WebP
-                if (in_array(strtolower($extension), ['png', 'webp'])) {
-                    imagealphablending($newImage, false);
-                    imagesavealpha($newImage, true);
-                    $transparent = imagecolorallocatealpha($newImage, 255, 255, 255, 127);
-                    imagefilledrectangle($newImage, 0, 0, $newWidth, $newHeight, $transparent);
-                }
-
-                imagecopyresampled($newImage, $image, 0, 0, $x, $y, $newWidth, $newHeight, $size, $size);
-
-                // Save to storage
-                ob_start();
-                if (in_array(strtolower($extension), ['jpg', 'jpeg'])) {
-                    imagejpeg($newImage, null, 85);
-                } elseif (strtolower($extension) === 'png') {
-                    imagepng($newImage, null, 8);
-                } elseif (strtolower($extension) === 'webp') {
-                    imagewebp($newImage, null, 85);
-                }
-                $content = ob_get_clean();
-
-                Storage::disk('public')->put($filename, $content);
-
-                imagedestroy($image);
-                imagedestroy($newImage);
-
-                $validated['profile_picture'] = $filename;
-            } else {
-                // Fallback to standard store if GD fails
-                $path = $this->photo->store('profile-photos', 'public');
-                $validated['profile_picture'] = $path;
-            }
+            $path = $this->photo->store('profile-photos', 'public');
+            $validated['profile_picture'] = $path;
         }
 
         // Remove photo from validated array as it is not in the users table
