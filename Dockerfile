@@ -27,15 +27,17 @@ RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoload
 COPY . .
 COPY --from=node_builder /app/public/build ./public/build
 
-RUN php -r "is_dir('storage') || mkdir('storage', 0777, true);" \
-    && php -r "is_dir('bootstrap/cache') || mkdir('bootstrap/cache', 0777, true);" \
-    && php -r "is_dir('storage/app/public') || mkdir('storage/app/public', 0777, true);" \
-    && php -r "is_dir('storage/framework/views') || mkdir('storage/framework/views', 0777, true);" \
-    && php -r \"is_dir('storage/framework/cache/data') || mkdir('storage/framework/cache/data', 0777, true);\" \
-    && php -r "is_dir('storage/framework/sessions') || mkdir('storage/framework/sessions', 0777, true);" \
-    && php -r "is_dir('storage/logs') || mkdir('storage/logs', 0777, true);" \
-    && php -r "is_link('public/storage') || (file_exists('public/storage') ?: symlink('../storage/app/public', 'public/storage'));" \
-    && chmod -R 0777 storage bootstrap/cache
+RUN set -eux; \
+    mkdir -p \
+        storage/app/public \
+        storage/framework/views \
+        storage/framework/cache/data \
+        storage/framework/sessions \
+        storage/logs \
+        bootstrap/cache; \
+    rm -rf public/storage; \
+    ln -s ../storage/app/public public/storage; \
+    chmod -R 0777 storage bootstrap/cache
 
 ENV APP_ENV=production
 ENV APP_DEBUG=false
