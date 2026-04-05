@@ -43,4 +43,4 @@ ENV APP_ENV=production
 ENV APP_DEBUG=false
 ENV VIEW_COMPILED_PATH=/app/storage/framework/views
 
-CMD ["sh", "-lc", "mkdir -p storage/framework/views storage/framework/cache/data storage/framework/sessions storage/logs bootstrap/cache && php -S 0.0.0.0:${PORT:-8080} -t public server.php"]
+CMD ["sh", "-lc", "mkdir -p storage/framework/views storage/framework/cache/data storage/framework/sessions storage/logs bootstrap/cache && php -S 0.0.0.0:${PORT:-8080} -t public public/index.php"]
