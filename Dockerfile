@@ -29,9 +29,16 @@ COPY --from=node_builder /app/public/build ./public/build
 
 RUN php -r "is_dir('storage') || mkdir('storage', 0777, true);" \
     && php -r "is_dir('bootstrap/cache') || mkdir('bootstrap/cache', 0777, true);" \
-    && php -r "is_link('public/storage') || (file_exists('public/storage') ?: symlink('../storage/app/public', 'public/storage'));"
+    && php -r "is_dir('storage/app/public') || mkdir('storage/app/public', 0777, true);" \
+    && php -r "is_dir('storage/framework/views') || mkdir('storage/framework/views', 0777, true);" \
+    && php -r \"is_dir('storage/framework/cache/data') || mkdir('storage/framework/cache/data', 0777, true);\" \
+    && php -r "is_dir('storage/framework/sessions') || mkdir('storage/framework/sessions', 0777, true);" \
+    && php -r "is_dir('storage/logs') || mkdir('storage/logs', 0777, true);" \
+    && php -r "is_link('public/storage') || (file_exists('public/storage') ?: symlink('../storage/app/public', 'public/storage'));" \
+    && chmod -R 0777 storage bootstrap/cache
 
 ENV APP_ENV=production
 ENV APP_DEBUG=false
+ENV VIEW_COMPILED_PATH=/app/storage/framework/views
 
-CMD ["sh", "-lc", "php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
+CMD ["sh", "-lc", "mkdir -p storage/framework/views storage/framework/cache/data storage/framework/sessions storage/logs bootstrap/cache && php -S 0.0.0.0:${PORT:-8080} -t public server.php"]
