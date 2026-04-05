@@ -27,6 +27,8 @@ class SuperAdminPanelProvider extends PanelProvider
     {
         $adminCustomCssPath = public_path('css/admin-custom.css');
         $adminCustomCssUrl = asset('css/admin-custom.css') . (is_file($adminCustomCssPath) ? ('?v=' . filemtime($adminCustomCssPath)) : '');
+        $rbLoaderPath = public_path('js/rb-loader.js');
+        $rbLoaderUrl = asset('js/rb-loader.js') . (is_file($rbLoaderPath) ? ('?v=' . filemtime($rbLoaderPath)) : '');
 
         return $panel
             ->id('super-admin')
@@ -40,7 +42,7 @@ class SuperAdminPanelProvider extends PanelProvider
             ])
             ->assets([
                 Css::make('admin-custom', $adminCustomCssUrl),
-                Js::make('rb-loader', asset('js/rb-loader.js')),
+                Js::make('rb-loader', $rbLoaderUrl),
             ])
             ->discoverResources(in: app_path('Filament/SuperAdmin/Resources'), for: 'App\\Filament\\SuperAdmin\\Resources')
             ->discoverPages(in: app_path('Filament/SuperAdmin/Pages'), for: 'App\\Filament\\SuperAdmin\\Pages')

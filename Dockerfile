@@ -7,7 +7,7 @@ COPY public ./public
 COPY vite.config.* tailwind.config.* postcss.config.* ./
 RUN npm run build
 
-FROM php:8.3-cli AS app
+FROM php:8.3-fpm AS app
 WORKDIR /app
 
 RUN apt-get update \
@@ -15,6 +15,9 @@ RUN apt-get update \
         ca-certificates \
         curl \
         git \
+        gettext-base \
+        nginx \
+        supervisor \
         unzip \
         libzip-dev \
         libicu-dev \
@@ -45,10 +48,15 @@ RUN set -eux; \
     ln -s ../storage/app/public public/storage; \
     chmod -R 0777 storage bootstrap/cache
 
+COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/php.ini /usr/local/etc/php/conf.d/zz-relaxbook.ini
+
 ENV APP_ENV=production
 ENV APP_DEBUG=false
 ENV VIEW_COMPILED_PATH=/app/storage/framework/views
 
-RUN chmod +x /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh \
+    && rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf || true
 
 CMD ["/app/entrypoint.sh"]

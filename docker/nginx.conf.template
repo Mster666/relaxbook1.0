@@ -1,0 +1,42 @@
+server {
+    listen ${PORT};
+    listen [::]:${PORT};
+
+    server_name _;
+
+    root /app/public;
+    index index.php index.html;
+    client_max_body_size 25m;
+
+    location ^~ /build/ {
+        try_files $uri =404;
+        expires 365d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location ^~ /js/ {
+        try_files $uri =404;
+        expires -1;
+        add_header Cache-Control "no-store";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+        fastcgi_param HTTP_X_FORWARDED_PROTO $http_x_forwarded_proto;
+        fastcgi_param HTTP_X_FORWARDED_HOST $http_x_forwarded_host;
+        fastcgi_param HTTP_X_FORWARDED_FOR $http_x_forwarded_for;
+        fastcgi_pass 127.0.0.1:9000;
+    }
+
+    location ~* \.(?:css|png|jpg|jpeg|gif|webp|svg|ico|woff2?)$ {
+        try_files $uri =404;
+        expires 30d;
+        add_header Cache-Control "public";
+    }
+}

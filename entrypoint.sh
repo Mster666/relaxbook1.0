@@ -15,5 +15,9 @@ ln -s ../storage/app/public public/storage
 
 chmod -R 0777 storage bootstrap/cache || true
 
-php -S 0.0.0.0:${PORT:-8080} -t public server.php
+PORT="${PORT:-8080}"
+export PORT
 
+envsubst '${PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+
+exec supervisord -c /etc/supervisor/conf.d/supervisord.conf

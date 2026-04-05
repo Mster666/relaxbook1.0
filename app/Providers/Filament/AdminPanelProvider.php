@@ -27,6 +27,8 @@ class AdminPanelProvider extends PanelProvider
     {
         $adminCustomCssPath = public_path('css/admin-custom.css');
         $adminCustomCssUrl = asset('css/admin-custom.css') . (is_file($adminCustomCssPath) ? ('?v=' . filemtime($adminCustomCssPath)) : '');
+        $rbLoaderPath = public_path('js/rb-loader.js');
+        $rbLoaderUrl = asset('js/rb-loader.js') . (is_file($rbLoaderPath) ? ('?v=' . filemtime($rbLoaderPath)) : '');
 
         return $panel
             ->default()
@@ -42,7 +44,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->assets([
                 Css::make('admin-custom', $adminCustomCssUrl),
-                Js::make('rb-loader', asset('js/rb-loader.js')),
+                Js::make('rb-loader', $rbLoaderUrl),
             ])
             ->navigationItems([
             ])

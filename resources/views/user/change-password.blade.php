@@ -11,12 +11,14 @@
             darkMode: 'class',
         }
     </script>
-    @if (file_exists(public_path('js/alpine.min.js')))
-        <script defer src="{{ asset('js/alpine.min.js') }}"></script>
-    @else
-        <script defer src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"></script>
-    @endif
-    <script defer src="{{ asset('js/rb-loader.js') }}"></script>
+    @php
+        $alpineLocal = public_path('js/alpine.min.js');
+        $rbLoaderLocal = public_path('js/rb-loader.js');
+        $alpineSrc = is_file($alpineLocal) ? asset('js/alpine.min.js') . '?v=' . filemtime($alpineLocal) : 'https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js';
+        $rbLoaderSrc = is_file($rbLoaderLocal) ? asset('js/rb-loader.js') . '?v=' . filemtime($rbLoaderLocal) : asset('js/rb-loader.js');
+    @endphp
+    <script defer src="{{ $alpineSrc }}"></script>
+    <script defer src="{{ $rbLoaderSrc }}"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
