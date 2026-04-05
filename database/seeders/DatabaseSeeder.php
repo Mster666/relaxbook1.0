@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -15,21 +16,23 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        if (app()->environment(['local', 'testing']) && env('SEED_DEMO_ACCOUNTS', false)) {
+            \App\Models\Admin::query()->firstOrCreate(
+                ['email' => 'admin@admin.com'],
+                [
+                    'name' => 'Admin User',
+                    'password' => Hash::make('password'),
+                ],
+            );
 
-        // Create Admin User
-        \App\Models\Admin::create([
-            'name' => 'Admin User',
-            'email' => 'admin@admin.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('password'),
-        ]);
-
-        // Create Regular User
-        User::factory()->create([
-            'name' => 'Regular User',
-            'email' => 'user@user.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('password'),
-        ]);
+            User::query()->firstOrCreate(
+                ['email' => 'user@user.com'],
+                [
+                    'name' => 'Regular User',
+                    'password' => Hash::make('password'),
+                ],
+            );
+        }
 
         $this->call([
             SuperAdminSeeder::class,
