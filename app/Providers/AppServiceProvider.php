@@ -40,10 +40,16 @@ class AppServiceProvider extends ServiceProvider
             $forwardedHost = trim(explode(',', $forwardedHost)[0] ?? '');
             $host = $forwardedHost !== '' ? $forwardedHost : $request->getHttpHost();
 
-            URL::forceRootUrl($scheme . '://' . $host);
+            $rootUrl = $scheme . '://' . $host;
+            URL::forceRootUrl($rootUrl);
             if ($scheme === 'https') {
                 URL::forceScheme('https');
             }
+
+            config([
+                'app.url' => $rootUrl,
+                'filesystems.disks.public.url' => $rootUrl . '/storage',
+            ]);
         }
 
         Event::listen(Login::class, function (Login $event) {

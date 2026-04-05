@@ -116,13 +116,6 @@ Route::get('/storage/{path}', function (string $path) {
     }
 
     if (! Storage::disk('public')->exists($path)) {
-        $fallback = public_path('images/logo.png');
-        if (is_file($fallback)) {
-            return response()->file($fallback, [
-                'Cache-Control' => 'public, max-age=300',
-            ]);
-        }
-
         abort(404);
     }
 
@@ -143,13 +136,6 @@ Route::get('/media/{path}', function (string $path) {
     }
 
     if (! Storage::disk('public')->exists($path)) {
-        $fallback = public_path('images/logo.png');
-        if (is_file($fallback)) {
-            return response()->file($fallback, [
-                'Cache-Control' => 'public, max-age=300',
-            ]);
-        }
-
         abort(404);
     }
 
