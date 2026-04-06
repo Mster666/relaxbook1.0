@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\Booking;
+use App\Models\CompanyRating;
 use App\Models\UserLog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -18,6 +19,13 @@ class UserAppointments extends Component
     public string $viewMode = 'list';
     public int $perPage = 5;
     public ?int $viewBookingId = null;
+
+    public bool $rateModalOpen = false;
+    public ?int $rateBookingId = null;
+    public ?int $rateCompanyId = null;
+    public ?string $rateCompanyName = null;
+    public int $rateValue = 5;
+    public string $rateComment = '';
 
     protected $queryString = [
         'statusFilter' => ['except' => 'all'],
@@ -61,6 +69,109 @@ class UserAppointments extends Component
         $this->viewBookingId = null;
     }
 
+    public function openRatingModal(int $bookingId): void
+    {
+        $booking = Booking::query()
+            ->where('id', $bookingId)
+            ->where('user_id', Auth::id())
+            ->with('admin:id,name,company_name')
+            ->first();
+
+        if (! $booking || (string) $booking->status !== 'completed') {
+            session()->flash('error', 'You can only rate a completed appointment.');
+
+            return;
+        }
+
+        $adminId = (int) $booking->admin_id;
+        if (! $adminId) {
+            session()->flash('error', 'Company not found for this booking.');
+
+            return;
+        }
+
+        $this->rateBookingId = (int) $booking->id;
+        $this->rateCompanyId = $adminId;
+        $this->rateCompanyName = (string) (($booking->admin?->company_name ?: $booking->admin?->name) ?: 'Company');
+
+        $existing = CompanyRating::query()
+            ->where('admin_id', $adminId)
+            ->where('user_id', Auth::id())
+            ->first();
+
+        $this->rateValue = $existing ? max(1, min(5, (int) $existing->rating)) : 5;
+        $this->rateComment = $existing ? (string) ($existing->comment ?? '') : '';
+        $this->rateModalOpen = true;
+    }
+
+    public function closeRatingModal(): void
+    {
+        $this->rateModalOpen = false;
+        $this->rateBookingId = null;
+        $this->rateCompanyId = null;
+        $this->rateCompanyName = null;
+        $this->rateValue = 5;
+        $this->rateComment = '';
+    }
+
+    public function saveRating(): void
+    {
+        $this->resetErrorBag();
+
+        $adminId = (int) ($this->rateCompanyId ?? 0);
+        $bookingId = (int) ($this->rateBookingId ?? 0);
+        $rating = (int) $this->rateValue;
+        $comment = trim($this->rateComment);
+
+        if (! $adminId || ! $bookingId) {
+            session()->flash('error', 'Rating context is missing.');
+            $this->closeRatingModal();
+
+            return;
+        }
+
+        if ($rating < 1 || $rating > 5) {
+            $this->addError('rateValue', 'Rating must be between 1 and 5.');
+
+            return;
+        }
+
+        $userId = (int) Auth::id();
+        $hasCompleted = Booking::query()
+            ->where('user_id', $userId)
+            ->where('admin_id', $adminId)
+            ->where('status', 'completed')
+            ->exists();
+
+        if (! $hasCompleted) {
+            session()->flash('error', 'You can only rate companies you have completed an appointment with.');
+            $this->closeRatingModal();
+
+            return;
+        }
+
+        $ratingRow = CompanyRating::query()->updateOrCreate(
+            [
+                'admin_id' => $adminId,
+                'user_id' => $userId,
+            ],
+            [
+                'booking_id' => $bookingId,
+                'rating' => $rating,
+                'comment' => $comment !== '' ? $comment : null,
+            ],
+        );
+
+        UserLog::record(Auth::user(), 'company_rated', [
+            'company_admin_id' => $adminId,
+            'booking_id' => $bookingId,
+            'rating' => (int) $ratingRow->rating,
+        ]);
+
+        session()->flash('message', 'Thank you! Your rating was saved.');
+        $this->closeRatingModal();
+    }
+
     public function render()
     {
         $userId = Auth::id();
@@ -83,6 +194,7 @@ class UserAppointments extends Component
         $query = Booking::query()
             ->where('user_id', $userId)
             ->with([
+                'admin:id,name,company_name',
                 'room:id,name,code',
                 'therapist:id,name',
                 'service:id,name,price,icon,duration_minutes',
@@ -116,6 +228,7 @@ class UserAppointments extends Component
                 ->where('id', $this->viewBookingId)
                 ->where('user_id', $userId)
                 ->with([
+                    'admin:id,name,company_name',
                     'room:id,name,code',
                     'therapist:id,name',
                     'service:id,name,price,icon,duration_minutes',

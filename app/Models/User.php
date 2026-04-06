@@ -69,4 +69,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
     {
         return $this->hasMany(Booking::class);
     }
+
+    public function companyRatings(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(CompanyRating::class);
+    }
 }

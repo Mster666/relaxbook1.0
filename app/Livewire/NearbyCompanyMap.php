@@ -21,6 +21,8 @@ class NearbyCompanyMap extends Component
                 $q->whereNull('subscription_expires_at')
                     ->orWhere('subscription_expires_at', '>=', now());
             })
+            ->withAvg('ratings', 'rating')
+            ->withCount('ratings')
             ->orderBy('company_name')
             ->orderBy('name')
             ->get([
@@ -148,6 +150,8 @@ class NearbyCompanyMap extends Component
                     'address' => $admin->company_address ? (string) $admin->company_address : null,
                     'lat' => $admin->company_latitude !== null ? (float) $admin->company_latitude : null,
                     'lng' => $admin->company_longitude !== null ? (float) $admin->company_longitude : null,
+                    'rating_avg' => $admin->ratings_avg_rating !== null ? round((float) $admin->ratings_avg_rating, 2) : null,
+                    'rating_count' => (int) ($admin->ratings_count ?? 0),
                     'is_open_now' => $isOpenNow,
                     'open_time' => (string) $open,
                     'close_time' => (string) $close,
@@ -165,4 +169,3 @@ class NearbyCompanyMap extends Component
         return view('livewire.nearby-company-map');
     }
 }
-

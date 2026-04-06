@@ -8,6 +8,7 @@
         userLat: null,
         userLng: null,
         filterAvailability: 'all',
+        minRating: 0,
         maxDistanceKm: 50,
         hasLocation: false,
         locationError: null,
@@ -42,6 +43,10 @@
         filteredCompanies() {
             return this.normalizedCompanies().filter((c) => {
                 if (this.filterAvailability !== 'all' && c.availability !== this.filterAvailability) return false;
+                if (this.minRating > 0) {
+                    const avg = c.rating_avg != null ? Number(c.rating_avg) : 0;
+                    if (avg < this.minRating) return false;
+                }
                 if (this.hasLocation && c.distance_km != null && c.distance_km > this.maxDistanceKm) return false;
                 return true;
             });
@@ -78,6 +83,8 @@
             const statusLabel = c.is_open_now ? 'Open' : 'Closed';
             const availabilityLabel = c.availability === 'available' ? 'Available' : c.availability === 'limited' ? 'Limited availability' : 'Closed / Unavailable';
             const distanceLabel = c.distance_km != null ? `${c.distance_km.toFixed(2)} km` : '—';
+            const ratingAvg = c.rating_avg != null ? Number(c.rating_avg).toFixed(1) : null;
+            const ratingCount = c.rating_count != null ? Number(c.rating_count) : 0;
 
             const statusRow = document.createElement('div');
             statusRow.textContent = `Status: ${statusLabel}`;
@@ -90,6 +97,10 @@
             const distanceRow = document.createElement('div');
             distanceRow.textContent = `Distance: ${distanceLabel}`;
             meta.appendChild(distanceRow);
+
+            const ratingRow = document.createElement('div');
+            ratingRow.textContent = ratingAvg ? `Rating: ${ratingAvg} (${ratingCount})` : 'Rating: —';
+            meta.appendChild(ratingRow);
 
             container.appendChild(meta);
 
@@ -265,6 +276,16 @@
                 </div>
 
                 <div class="flex items-center gap-2">
+                    <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Rating</div>
+                    <select x-model.number="minRating" @change="refreshMarkers()" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+                        <option value="0">Any</option>
+                        <option value="4">4+ stars</option>
+                        <option value="3">3+ stars</option>
+                        <option value="2">2+ stars</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-2">
                     <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Max distance</div>
                     <input type="range" min="1" max="100" step="1" x-model="maxDistanceKm" @input="refreshMarkers()" class="w-36">
                     <div class="text-sm font-extrabold text-slate-900 dark:text-white" x-text="maxDistanceKm + ' km'"></div>
@@ -329,6 +350,9 @@
                                 <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">
                                     <span x-show="c.distance_km != null" x-text="c.distance_km != null ? (c.distance_km.toFixed(2) + ' km') : ''"></span>
                                     <span x-show="c.distance_km == null">Distance: —</span>
+                                    <span class="mx-2 text-slate-300 dark:text-slate-700">•</span>
+                                    <span x-show="c.rating_avg != null" x-text="Number(c.rating_avg).toFixed(1) + ' ★ (' + (c.rating_count || 0) + ')'"></span>
+                                    <span x-show="c.rating_avg == null">Rating: —</span>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <button type="button" class="rounded-xl bg-slate-100 px-3 py-2 text-xs font-extrabold text-slate-700 hover:bg-slate-200 transition dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"

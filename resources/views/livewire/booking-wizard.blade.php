@@ -297,6 +297,11 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
+                                    <span class="hidden sm:inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ring-1 bg-slate-50 text-slate-700 ring-slate-200 dark:bg-slate-800/60 dark:text-slate-200 dark:ring-slate-700/60">
+                                        <span class="text-amber-500">★</span>
+                                        {{ $company->ratings_avg_rating !== null ? number_format((float) $company->ratings_avg_rating, 1) : '—' }}
+                                        <span class="text-slate-400 dark:text-slate-500">({{ (int) ($company->ratings_count ?? 0) }})</span>
+                                    </span>
                                     <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1
                                         {{ $isSelected ? 'bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-200 dark:ring-indigo-700/50' : 'bg-slate-50 text-slate-600 ring-slate-200 dark:bg-slate-800/60 dark:text-slate-200 dark:ring-slate-700/60' }}">
                                         {{ $isSelected ? 'Selected' : 'Select' }}

@@ -144,4 +144,9 @@ class Admin extends Authenticatable implements FilamentUser, HasAvatar
     {
         return $this->hasMany(SubscriptionLog::class);
     }
+
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(CompanyRating::class);
+    }
 }

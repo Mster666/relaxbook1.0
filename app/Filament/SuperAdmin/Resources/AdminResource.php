@@ -11,6 +11,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class AdminResource extends Resource
 {
@@ -169,6 +170,14 @@ class AdminResource extends Resource
                     ->sortable()
                     ->copyable()
                     ->icon('heroicon-m-envelope'),
+                Tables\Columns\TextColumn::make('ratings_avg_rating')
+                    ->label('Rating')
+                    ->sortable()
+                    ->formatStateUsing(fn ($state) => $state !== null ? number_format((float) $state, 1) : '—'),
+                Tables\Columns\TextColumn::make('ratings_count')
+                    ->label('Ratings')
+                    ->sortable()
+                    ->formatStateUsing(fn ($state) => (string) ((int) ($state ?? 0))),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Status')
                     ->boolean()
@@ -263,6 +272,13 @@ class AdminResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->withAvg('ratings', 'rating')
+            ->withCount('ratings');
     }
 
     public static function getRelations(): array

@@ -152,6 +152,8 @@ class BookingWizard extends Component
                 $q->whereNull('subscription_expires_at')
                     ->orWhere('subscription_expires_at', '>=', now());
             })
+            ->withAvg('ratings', 'rating')
+            ->withCount('ratings')
             ->orderBy('name')
             ->get(['id', 'name', 'company_name', 'company_logo', 'company_address', 'company_latitude', 'company_longitude', 'email', 'phone_number']);
     }
