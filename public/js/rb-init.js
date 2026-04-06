@@ -1,9 +1,9 @@
 (() => {
-  const loadScript = (src, { defer = true } = {}) =>
+  const loadScript = (src) =>
     new Promise((resolve, reject) => {
       const el = document.createElement('script')
       el.src = src
-      el.defer = defer
+      el.async = false
       el.onload = () => resolve()
       el.onerror = () => reject(new Error(`Failed to load ${src}`))
       document.head.appendChild(el)
@@ -63,6 +63,13 @@
     }
 
     try {
+      if (window.Alpine && typeof window.Alpine.start === 'function') {
+        window.Alpine.start()
+      }
+    } catch {
+    }
+
+    try {
       await loadScript(loaderLocal)
     } catch {
       showBanner('App runtime failed to load. Buttons may not work.')
@@ -82,4 +89,3 @@
     start()
   }
 })()
-
